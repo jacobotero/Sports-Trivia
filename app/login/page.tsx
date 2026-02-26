@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
@@ -16,9 +15,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     try {
       const res = await signIn("credentials", {
@@ -28,9 +29,8 @@ export default function LoginPage() {
       });
 
       if (res?.error) {
-        toast.error("Invalid email or password");
+        setError("Invalid email or password");
       } else {
-        toast.success("Signed in!");
         router.push("/");
         router.refresh();
       }
@@ -56,8 +56,9 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 autoComplete="email"
                 value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); setError(null); }}
                 required
+                className={error ? "border-red-500 focus-visible:ring-red-500/30" : ""}
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -69,9 +70,9 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   autoComplete="current-password"
                   value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  onChange={(e) => { setForm((f) => ({ ...f, password: e.target.value })); setError(null); }}
                   required
-                  className="pr-10"
+                  className={`pr-10 ${error ? "border-red-500 focus-visible:ring-red-500/30" : ""}`}
                 />
                 <button
                   type="button"
@@ -82,6 +83,7 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3 pt-6">
