@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Sport {
+  MLB
+  NFL
+  NBA
+  NHL
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts         Attempt[]
+  userSports       UserSport[]
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+}
+
+model Question {
+  id         String       @id @default(cuid())
+  sport      Sport
+  type       QuestionType
+  prompt     String
+  choices    String[]
+  answer     String
+  difficulty Int?
+  tags       String[]
+  createdAt  DateTime     @default(now())
+
+  dailySets      DailySetQuestion[]
+  attemptAnswers AttemptAnswer[]
+}
+
+model DailySet {
+  id        String   @id @default(cuid())
+  date      String
+  sport     Sport
+  createdAt DateTime @default(now())
+
+  questions DailySetQuestion[]
+  attempts  Attempt[]
+
+  @@unique([date, sport])
+}
+
+model DailySetQuestion {
+  id         String @id @default(cuid())
+  dailySetId String
+  questionId String
+  order      Int
+
+  dailySet DailySet @relation(fields: [dailySetId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([dailySetId, questionId])
+  @@index([dailySetId, order])
+}
+
+model Attempt {
+  id          String    @id @default(cuid())
+  userId      String?
+  dailySetId  String
+  date        String
+  sport       Sport
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  totalScore  Int       @default(0)
+  xpEarned    Int       @default(0)
+
+  user     User?         @relation(fields: [userId], references: [id])
+  dailySet DailySet      @relation(fields: [dailySetId], references: [id])
+  answers  AttemptAnswer[]
+
+  @@unique([userId, date, sport])
+}
+
+model AttemptAnswer {
+  id              String  @id @default(cuid())
+  attemptId       String
+  questionId      String
+  isCorrect       Boolean
+  timeTakenMs     Int
+  submittedAnswer String
+  score           Int
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+}
+
+model UserSport {
+  id       String @id @default(cuid())
+  userId   String
+  sport    Sport
+  xpTotal  Int    @default(0)
+  rankTier String @default("Bronze")
+  division Int    @default(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, sport])
+}
+
+model FriendRequest {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SentRequests", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+}
