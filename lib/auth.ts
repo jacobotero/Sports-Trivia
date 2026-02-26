@@ -41,6 +41,16 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.emailVerified = (user as { emailVerified?: Date | null }).emailVerified ?? null;
       }
+      // Re-check DB if still unverified — picks up changes after the user clicks the email link
+      if (token.id && !token.emailVerified) {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.id as string },
+          select: { emailVerified: true },
+        });
+        if (dbUser?.emailVerified) {
+          token.emailVerified = dbUser.emailVerified;
+        }
+      }
       return token;
     },
     async session({ session, token }) {

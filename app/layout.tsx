@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/SessionProvider";
 import { NavBar } from "@/components/NavBar";
-import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { AdSlot } from "@/components/AdSlot";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -51,7 +50,6 @@ export default function RootLayout({
       >
         <SessionProvider>
           <NavBar />
-          <EmailVerificationBanner />
           <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">{children}</main>
           <footer className="border-t border-border py-6 mt-8">
             <div className="max-w-6xl mx-auto px-4">
