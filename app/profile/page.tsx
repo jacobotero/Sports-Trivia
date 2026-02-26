@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { xpToLevel, xpProgress } from "@/lib/levels"; // xpProgress used for overall bar
+import { xpToLevel, xpProgress } from "@/lib/levels";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { User, Calendar, Trophy } from "lucide-react";
+import { ProfileActions } from "@/components/ProfileActions";
 
 const SPORT_EMOJI: Record<string, string> = { MLB: "⚾", NFL: "🏈", NBA: "🏀" };
 
@@ -129,6 +130,8 @@ export default async function ProfilePage() {
           </div>
         )}
       </div>
+
+      <ProfileActions currentName={user.name ?? ""} />
     </div>
   );
 }
