@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { registerLimiter, checkRateLimit, getIp } from "@/lib/ratelimit";
+import { sendVerificationEmail } from "@/lib/email";
+import { generateToken, hoursFromNow } from "@/lib/tokens";
 
 const schema = z.object({
   name: z.string().min(2).max(50),
@@ -42,9 +44,20 @@ export async function POST(req: Request) {
 
     const hashed = await bcrypt.hash(password, 12);
     const user = await db.user.create({
-      data: { name, email: normalizedEmail, password: hashed },
+      data: { name: name.trim(), email: normalizedEmail, password: hashed },
       select: { id: true, name: true, email: true },
     });
+
+    // Create verification token and send email (non-blocking — don't fail registration if email fails)
+    try {
+      const token = generateToken();
+      await db.verificationToken.create({
+        data: { userId: user.id, token, expiresAt: hoursFromNow(24) },
+      });
+      await sendVerificationEmail(user.email, user.name ?? "there", token);
+    } catch (emailErr) {
+      console.error("[register] Failed to send verification email:", emailErr);
+    }
 
     return NextResponse.json(user, { status: 201 });
   } catch {

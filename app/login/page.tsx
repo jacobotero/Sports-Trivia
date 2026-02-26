@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
+
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +32,7 @@ export default function LoginPage() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password");
+        setError("Invalid email or password.");
       } else {
         router.push("/");
         router.refresh();
@@ -46,6 +49,19 @@ export default function LoginPage() {
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to track your stats &amp; rank</CardDescription>
         </CardHeader>
+
+        {message === "check-email" && (
+          <div className="mx-6 mb-2 flex items-start gap-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm text-blue-400">
+            <Mail className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>Account created! Check your email to verify your address.</span>
+          </div>
+        )}
+        {message === "password-reset" && (
+          <div className="mx-6 mb-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+            Password updated. Sign in with your new password.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
@@ -62,7 +78,15 @@ export default function LoginPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="password"
@@ -101,5 +125,13 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

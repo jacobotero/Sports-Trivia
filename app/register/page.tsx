@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,15 +82,8 @@ export default function RegisterPage() {
         return;
       }
 
-      await signIn("credentials", {
-        email: form.email,
-        password: form.password,
-        redirect: false,
-      });
-
-      toast.success("Account created! Welcome to Sportsdle.");
-      router.push("/");
-      router.refresh();
+      // Redirect to login with a prompt to check email
+      router.push("/login?message=check-email");
     } finally {
       setLoading(false);
     }
