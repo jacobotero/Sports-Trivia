@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
 
 const SPORTS = ["MLB", "NFL", "NBA"] as const;
+const SPORT_EMOJI: Record<string, string> = { MLB: "⚾", NFL: "🏈", NBA: "🏀" };
 const TOP_N = 50;
 
 async function getOverallLeaderboard() {
@@ -42,7 +43,7 @@ async function getSportLeaderboard(sport: (typeof SPORTS)[number]) {
 
 const MEDALS: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
-function LeaderboardTable({ entries }: { entries: { place: number; name: string; xp: number }[] }) {
+function OverallTable({ entries }: { entries: { place: number; name: string; xp: number }[] }) {
   if (entries.length === 0) {
     return <p className="text-muted-foreground text-sm text-center py-8">No players yet. Be the first!</p>;
   }
@@ -71,6 +72,27 @@ function LeaderboardTable({ entries }: { entries: { place: number; name: string;
   );
 }
 
+function SportTable({ entries }: { entries: { place: number; name: string; xp: number }[] }) {
+  if (entries.length === 0) {
+    return <p className="text-muted-foreground text-sm text-center py-8">No players yet. Be the first!</p>;
+  }
+  return (
+    <div className="divide-y divide-border">
+      {entries.map((e) => (
+        <div key={e.place} className="flex items-center gap-4 py-3 px-1">
+          <span className="w-8 text-center font-mono text-sm font-semibold text-muted-foreground">
+            {MEDALS[e.place] ?? `#${e.place}`}
+          </span>
+          <span className="flex-1 font-medium truncate">{e.name}</span>
+          <span className="font-mono text-sm font-semibold tabular-nums text-yellow-400">
+            {e.xp.toLocaleString()} XP
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default async function LeaderboardPage() {
   const [overall, ...sportBoards] = await Promise.all([
     getOverallLeaderboard(),
@@ -87,7 +109,7 @@ export default async function LeaderboardPage() {
         <Trophy className="h-7 w-7 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
         <div>
           <h1 className="text-3xl font-bold">Leaderboard</h1>
-          <p className="text-muted-foreground text-sm">Top players by total XP</p>
+          <p className="text-muted-foreground text-sm">Top players by XP</p>
         </div>
       </div>
 
@@ -97,16 +119,18 @@ export default async function LeaderboardPage() {
             <TabsList className="mb-4">
               <TabsTrigger value="overall">Overall</TabsTrigger>
               {SPORTS.map((s) => (
-                <TabsTrigger key={s} value={s}>{s}</TabsTrigger>
+                <TabsTrigger key={s} value={s}>{SPORT_EMOJI[s]} {s}</TabsTrigger>
               ))}
             </TabsList>
 
             <TabsContent value="overall">
-              <LeaderboardTable entries={overall} />
+              <p className="text-xs text-muted-foreground mb-3">Ranked by total XP · Level based on combined XP</p>
+              <OverallTable entries={overall} />
             </TabsContent>
             {SPORTS.map((sport) => (
               <TabsContent key={sport} value={sport}>
-                <LeaderboardTable entries={sportData[sport]} />
+                <p className="text-xs text-muted-foreground mb-3">Ranked by {sport} XP only</p>
+                <SportTable entries={sportData[sport]} />
               </TabsContent>
             ))}
           </Tabs>
