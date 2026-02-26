@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { AdSlot } from "@/components/AdSlot";
 import { SetPlayedFlag } from "@/components/SetPlayedFlag";
+import { HomeWarningButton } from "@/components/HomeWarningButton";
 
 const SPORT_LABELS: Record<string, string> = {
   mlb: "MLB Baseball",
@@ -175,9 +176,7 @@ export default async function PlayPage({ params }: PlayPageProps) {
               })}
             </p>
           </div>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/">← Home</Link>
-          </Button>
+          <HomeWarningButton />
         </div>
 
         <Card>
