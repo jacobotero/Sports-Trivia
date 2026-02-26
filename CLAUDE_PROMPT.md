@@ -203,9 +203,20 @@ Now implement this MVP.
 - **MC choices**: Generated server-side at page load (correct answer + 3 distractors from other questions of same sport, shuffled deterministically by `date+questionId`). Does NOT read from the DB `choices` column — bypasses potential array storage issues with Neon adapter.
 
 ### Gameplay Decisions
-- **No mid-quiz reveal**: After submitting an answer, the app immediately advances to the next question pre-screen. Correct/incorrect is NOT shown until the final results screen.
+- **No mid-quiz reveal**: After submitting an answer, the app immediately advances to the next question. Correct/incorrect is NOT shown until the final results screen.
+- **Auto-advance**: 900ms delay after submitting, then auto-loads next question (no "Start Next Question" button between questions). "Start Quiz" button only appears before Q1.
+- **MC only**: Fill-in-the-blank removed from gameplay. `getOrCreateDailySet` only picks `type: MULTIPLE_CHOICE` questions.
 - **Results screen**: Shows per-question breakdown with correct answers for anything wrong, plus what the user submitted.
 - **Progress dots**: Neutral color for answered questions during quiz (no green/red until done screen).
+- **Timer**: `key={currentIdx}` on TimerBar forces full remount (reset) between questions.
+
+### Admin Hub
+- Route: `/admin` (redirects to `/admin/questions`)
+- Auth: checks `ADMIN_EMAIL` env var against session email — no DB changes needed
+- **Questions page** (`/admin/questions`): Create/edit/delete MC questions. Form has sport selector, question textarea, 4 choice inputs, correct answer picker (circle button), difficulty 1–5.
+- **Schedule page** (`/admin/schedule`): Pick date + sport, select exactly 8 questions by clicking them (shows selection order). Save creates/replaces the DailySet in DB. "Reset to Auto" deletes it so the deterministic algo takes over.
+- API routes: `GET/POST /api/admin/questions`, `PATCH/DELETE /api/admin/questions/[id]`, `GET/POST/DELETE /api/admin/schedule`
+- All admin API routes return 403 if session email ≠ `ADMIN_EMAIL`
 
 ### Environment (.env)
 ```
@@ -213,6 +224,7 @@ DATABASE_URL=   # pooled Neon URL (used by runtime app)
 DIRECT_URL=     # direct Neon URL (used by Prisma CLI)
 NEXTAUTH_SECRET=
 NEXTAUTH_URL=http://localhost:3000
+ADMIN_EMAIL=    # your account email — grants access to /admin
 ```
 
 ### Current State

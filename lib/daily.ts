@@ -42,9 +42,9 @@ export async function getOrCreateDailySet(date: string, sport: Sport) {
 
   if (existing) return existing;
 
-  // Fetch all questions for this sport
+  // Fetch all MC questions for this sport (fill-blank removed from gameplay)
   const allQuestions = await db.question.findMany({
-    where: { sport },
+    where: { sport, type: "MULTIPLE_CHOICE" },
   });
 
   if (allQuestions.length < QUESTIONS_PER_DAY) {
