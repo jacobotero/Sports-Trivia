@@ -62,14 +62,51 @@ export default async function PlayPage({ params }: PlayPageProps) {
       include: { answers: true },
     });
 
-    if (existing?.completedAt) {
+    const totalQuestions = dailySet.questions.length;
+
+    if (existing?.completedAt && existing.answers.length < totalQuestions) {
+      // Forfeited: completed (by sendBeacon or server fallback) but with partial answers
+      const totalScore = existing.totalScore ?? 0;
+      const xpEarned = existing.xpEarned ?? 0;
+      const answeredCount = existing.answers.length;
+
+      return (
+        <div className="flex flex-col items-center gap-4 py-16 text-center max-w-sm mx-auto">
+          <SetPlayedFlag date={date} sport={sportKey} />
+          <div className="text-4xl">⚠️</div>
+          <h2 className="text-2xl font-bold">Quiz Forfeited</h2>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            You left mid-quiz. Only {answeredCount} of {totalQuestions} questions were answered —
+            the rest counted as 0.
+          </p>
+          <div className="w-full rounded-xl border border-border bg-card/50 p-4 flex flex-col gap-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Score</span>
+              <span className="font-mono font-bold">{totalScore.toLocaleString()} pts</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Questions answered</span>
+              <span className="font-bold">{answeredCount} / {totalQuestions}</span>
+            </div>
+            {xpEarned > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">XP earned</span>
+                <span className="font-bold text-yellow-400">+{xpEarned} XP</span>
+              </div>
+            )}
+          </div>
+          <Button asChild className="w-full">
+            <Link href="/">Back to Home</Link>
+          </Button>
+        </div>
+      );
+    } else if (existing?.completedAt) {
       alreadyCompleted = true;
     } else if (existing && existing.answers.length > 0) {
-      // User abandoned mid-quiz — auto-complete with partial score, no resume
+      // sendBeacon fallback: user abandoned but forfeit API never fired — award XP now
       const totalScore = existing.answers.reduce((sum, a) => sum + a.score, 0);
       const xpEarned = computeXpEarned(totalScore);
       const answeredCount = existing.answers.length;
-      const totalQuestions = dailySet.questions.length;
 
       await db.attempt.update({
         where: { id: existing.id },

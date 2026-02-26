@@ -204,6 +204,44 @@ export function QuizRunner({
   } | null>(null);
   const attemptIdRef = useRef(initialAttemptId);
   const questionStartRef = useRef<number>(0);
+  const phaseRef = useRef<PhaseType>("pre");
+  const resultsRef = useRef<QuestionResult[]>([]);
+  const forfeitFiredRef = useRef(false);
+
+  // Keep refs in sync so the forfeit cleanup always has current values
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { resultsRef.current = results; }, [results]);
+
+  // Fire-and-forget forfeit via sendBeacon (works even during page unload)
+  const fireForfeit = useCallback(() => {
+    if (
+      forfeitFiredRef.current ||
+      phaseRef.current === "done" ||
+      resultsRef.current.length === 0 ||
+      !attemptIdRef.current
+    ) return;
+    forfeitFiredRef.current = true;
+    // Mark as played in localStorage so the home page reflects it immediately
+    localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+    navigator.sendBeacon(
+      "/api/attempt/forfeit",
+      new Blob(
+        [JSON.stringify({ attemptId: attemptIdRef.current })],
+        { type: "application/json" }
+      )
+    );
+  }, [date, sport]);
+
+  // pagehide: covers browser back, tab close, page refresh
+  useEffect(() => {
+    window.addEventListener("pagehide", fireForfeit);
+    return () => window.removeEventListener("pagehide", fireForfeit);
+  }, [fireForfeit]);
+
+  // Component unmount cleanup: covers SPA navigation (router.push)
+  useEffect(() => {
+    return () => { fireForfeit(); };
+  }, [fireForfeit]);
 
   const currentQuestion = questions[currentIdx];
   const totalQuestions = questions.length;
@@ -346,6 +384,9 @@ export function QuizRunner({
           <h2 className="text-3xl font-black">Ready?</h2>
           <p className="text-muted-foreground text-sm max-w-xs mx-auto">
             Each question has 10 seconds. Faster answers earn more points.
+          </p>
+          <p className="text-muted-foreground/60 text-xs max-w-xs mx-auto">
+            Leaving mid-quiz forfeits unanswered questions.
           </p>
         </div>
         <Button

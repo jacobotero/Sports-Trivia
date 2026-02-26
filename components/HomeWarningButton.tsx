@@ -11,7 +11,7 @@ export function HomeWarningButton() {
   if (confirming) {
     return (
       <div className="flex items-center gap-2 animate-in fade-in duration-150">
-        <span className="text-sm text-muted-foreground whitespace-nowrap">Leave quiz?</span>
+        <span className="text-sm text-muted-foreground whitespace-nowrap">Leave? Unanswered questions forfeit.</span>
         <Button
           variant="ghost"
           size="sm"
