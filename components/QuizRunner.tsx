@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { TimerBar } from "@/components/TimerBar";
 import { RankBadge } from "@/components/RankBadge";
 import { CheckCircle2, XCircle, Trophy, Share2, Play } from "lucide-react";
@@ -42,51 +42,83 @@ interface QuestionResult {
 
 type PhaseType = "pre" | "answering" | "between" | "done";
 
-// Circular countdown ring — animates from full to empty over `durationMs`
-function CountdownRing({ durationMs, label }: { durationMs: number; label: string }) {
-  const r = 44;
-  const circ = 2 * Math.PI * r;
+// ── Countdown ring ────────────────────────────────────────────────────────────
+function CountdownRing({
+  durationMs,
+  nextQNum,
+  total,
+}: {
+  durationMs: number;
+  nextQNum: number;
+  total: number;
+}) {
+  const r = 52;
+  const circ = +(2 * Math.PI * r).toFixed(2);
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative w-28 h-28 flex items-center justify-center">
+    <div className="flex flex-col items-center gap-5">
+      {/* Ring */}
+      <div className="relative" style={{ width: 140, height: 140 }}>
+        {/* Outer glow */}
+        <div
+          className="absolute inset-0 rounded-full opacity-20 blur-xl"
+          style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)" }}
+        />
         <svg
+          width="140"
+          height="140"
+          viewBox="0 0 140 140"
           className="absolute inset-0 -rotate-90"
-          width="112"
-          height="112"
-          viewBox="0 0 112 112"
         >
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#a855f7" />
+            </linearGradient>
+          </defs>
           {/* Track */}
-          <circle cx="56" cy="56" r={r} fill="none" stroke="currentColor" strokeWidth="5" className="text-muted/30" />
-          {/* Animated fill */}
           <circle
-            cx="56"
-            cy="56"
-            r={r}
+            cx="70" cy="70" r={r}
             fill="none"
             stroke="currentColor"
-            strokeWidth="5"
+            strokeWidth="6"
+            className="text-white/8"
+          />
+          {/* Draining arc */}
+          <circle
+            cx="70" cy="70" r={r}
+            fill="none"
+            stroke="url(#ringGrad)"
+            strokeWidth="6"
             strokeLinecap="round"
-            className="text-primary"
             strokeDasharray={circ}
             strokeDashoffset={0}
+            className="animate-drain-ring"
             style={{
-              animation: `drainRing ${durationMs}ms linear forwards`,
-            }}
+              "--ring-circ": circ,
+              "--ring-duration": `${durationMs}ms`,
+            } as React.CSSProperties}
           />
         </svg>
-        <span className="text-2xl font-black text-foreground z-10">{label}</span>
+        {/* Center number */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-4xl font-black text-white leading-none">{nextQNum}</span>
+          <span className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mt-0.5">
+            of {total}
+          </span>
+        </div>
       </div>
-      <style>{`
-        @keyframes drainRing {
-          from { stroke-dashoffset: 0; }
-          to   { stroke-dashoffset: ${circ}; }
-        }
-      `}</style>
+
+      <div className="text-center">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-white/40 font-semibold">
+          Next Question
+        </p>
+      </div>
     </div>
   );
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
 export function QuizRunner({
   sport,
   date,
@@ -101,26 +133,19 @@ export function QuizRunner({
   const [results, setResults] = useState<QuestionResult[]>([]);
   const [timerRunning, setTimerRunning] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [finalSummary, setFinalSummary] = useState<{
     totalScore: number;
     xpEarned: number;
     rankXp: number;
   } | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const attemptIdRef = useRef(initialAttemptId);
   const questionStartRef = useRef<number>(0);
 
   const currentQuestion = questions[currentIdx];
   const totalQuestions = questions.length;
 
-  const startQuestion = useCallback(() => {
-    setPhase("answering");
-    setTimerRunning(true);
-    setSelectedChoice(null);
-    questionStartRef.current = Date.now();
-  }, []);
-
-  // Auto-advance after BETWEEN_MS when in "between" phase
+  // Auto-advance from "between" after BETWEEN_MS
   useEffect(() => {
     if (phase !== "between") return;
     const t = setTimeout(() => {
@@ -132,6 +157,13 @@ export function QuizRunner({
     }, BETWEEN_MS);
     return () => clearTimeout(t);
   }, [phase, nextIdx]);
+
+  const startQuestion = useCallback(() => {
+    setPhase("answering");
+    setTimerRunning(true);
+    setSelectedChoice(null);
+    questionStartRef.current = Date.now();
+  }, []);
 
   const completeQuiz = useCallback(
     async (newResults: QuestionResult[]) => {
@@ -153,9 +185,7 @@ export function QuizRunner({
             setPhase("done");
             return;
           }
-        } catch {
-          // fall through
-        }
+        } catch { /* fall through */ }
       }
       const totalScore = newResults.reduce((s, r) => s + r.score, 0);
       localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
@@ -176,8 +206,6 @@ export function QuizRunner({
         ? TIMER_MS
         : Math.min(Date.now() - questionStartRef.current, TIMER_MS);
 
-      const submittedAnswer = expired ? "" : answer;
-
       try {
         const res = await fetch("/api/attempt/answer", {
           method: "POST",
@@ -185,7 +213,7 @@ export function QuizRunner({
           body: JSON.stringify({
             attemptId: attemptIdRef.current ?? "guest",
             questionId: currentQuestion.id,
-            submittedAnswer,
+            submittedAnswer: expired ? "" : answer,
             timeTakenMs,
           }),
         });
@@ -198,24 +226,23 @@ export function QuizRunner({
           isCorrect: data.isCorrect,
           score: data.score,
           correctAnswer: data.correctAnswer,
-          submittedAnswer,
+          submittedAnswer: expired ? "" : answer,
           timeTakenMs,
         };
 
         const newResults = [...results, result];
         setResults(newResults);
 
-        const isLast = currentIdx === totalQuestions - 1;
-
-        if (isLast) {
+        if (currentIdx === totalQuestions - 1) {
           await completeQuiz(newResults);
         } else {
           setNextIdx(currentIdx + 1);
           setPhase("between");
         }
       } catch {
-        toast.error("Failed to submit answer. Try again.");
+        toast.error("Failed to submit. Try again.");
         setTimerRunning(true);
+        setSelectedChoice(null);
       } finally {
         setSubmitting(false);
       }
@@ -223,9 +250,7 @@ export function QuizRunner({
     [phase, submitting, currentQuestion, results, currentIdx, totalQuestions, completeQuiz]
   );
 
-  const handleTimerExpire = useCallback(() => {
-    submitAnswer("", true);
-  }, [submitAnswer]);
+  const handleTimerExpire = useCallback(() => submitAnswer("", true), [submitAnswer]);
 
   const handleChoiceSelect = useCallback(
     (choice: string) => {
@@ -247,17 +272,21 @@ export function QuizRunner({
   // ── PRE ───────────────────────────────────────────────────────────────────
   if (phase === "pre") {
     return (
-      <div className="flex flex-col items-center gap-6 py-10 px-4">
-        <div className="text-center">
-          <p className="text-muted-foreground text-sm mb-1">
-            {totalQuestions} questions · 10 seconds each
+      <div className="animate-in fade-in duration-400 flex flex-col items-center gap-7 py-12 px-4">
+        <div className="text-center space-y-2">
+          <p className="text-muted-foreground text-sm uppercase tracking-widest font-medium">
+            {sport} · {totalQuestions} Questions
           </p>
-          <h2 className="text-2xl font-bold">Ready to play?</h2>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Answer fast — speed earns bonus points.
+          <h2 className="text-3xl font-black">Ready?</h2>
+          <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+            Each question has 10 seconds. Faster answers earn more points.
           </p>
         </div>
-        <Button size="lg" className="px-10 py-6 text-lg font-bold" onClick={startQuestion}>
+        <Button
+          size="lg"
+          onClick={startQuestion}
+          className="animate-pop-in px-12 py-6 text-lg font-bold rounded-2xl shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all duration-200"
+        >
           <Play className="h-5 w-5 mr-2" />
           Start Quiz
         </Button>
@@ -268,16 +297,12 @@ export function QuizRunner({
   // ── BETWEEN ───────────────────────────────────────────────────────────────
   if (phase === "between") {
     return (
-      <div className="flex flex-col items-center justify-center gap-6 py-16 px-4">
-        <CountdownRing durationMs={BETWEEN_MS} label={`${nextIdx + 1}`} />
-        <div className="text-center">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
-            Next up
-          </p>
-          <p className="text-xl font-bold mt-1">
-            Question {nextIdx + 1} <span className="text-muted-foreground font-normal">of {totalQuestions}</span>
-          </p>
-        </div>
+      <div className="animate-in fade-in zoom-in-95 duration-300 flex items-center justify-center py-12 px-4">
+        <CountdownRing
+          durationMs={BETWEEN_MS}
+          nextQNum={nextIdx + 1}
+          total={totalQuestions}
+        />
       </div>
     );
   }
@@ -288,29 +313,29 @@ export function QuizRunner({
     const rankInfo = session && finalSummary.rankXp > 0 ? computeRank(finalSummary.rankXp) : null;
 
     return (
-      <div className="flex flex-col items-center gap-5 py-4 max-w-lg mx-auto w-full px-2">
-        <div className="text-center">
-          <Trophy className="h-12 w-12 text-yellow-400 mx-auto mb-2" />
-          <h2 className="text-3xl font-bold">Quiz Complete!</h2>
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center gap-5 py-4 max-w-lg mx-auto w-full px-2">
+        <div className="text-center animate-pop-in">
+          <Trophy className="h-14 w-14 text-yellow-400 mx-auto mb-3 drop-shadow-[0_0_16px_rgba(250,204,21,0.5)]" />
+          <h2 className="text-3xl font-black">Quiz Complete!</h2>
           <p className="text-muted-foreground mt-1 text-sm">{sport} · {date}</p>
         </div>
 
-        <Card className="w-full">
+        <Card className="w-full shadow-xl border-border/50">
           <CardContent className="p-5 flex flex-col gap-3">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Score</span>
-              <span className="text-2xl font-bold font-mono">
+              <span className="text-2xl font-black font-mono tabular-nums">
                 {finalSummary.totalScore.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Correct</span>
-              <span className="font-semibold">{correct} / {totalQuestions}</span>
+              <span className="font-bold">{correct} / {totalQuestions}</span>
             </div>
             {session && finalSummary.xpEarned > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">XP Earned</span>
-                <span className="font-semibold text-yellow-400">+{finalSummary.xpEarned} XP</span>
+                <span className="font-bold text-yellow-400">+{finalSummary.xpEarned} XP</span>
               </div>
             )}
             {rankInfo && (
@@ -324,39 +349,42 @@ export function QuizRunner({
 
         {/* Breakdown */}
         <div className="w-full">
-          <p className="text-sm font-medium text-muted-foreground mb-2">Question Breakdown</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Breakdown</p>
           <div className="flex flex-col gap-2">
             {results.map((r, i) => (
-              <div key={r.questionId} className="flex items-start gap-3 text-sm bg-card/50 rounded-lg p-3 border border-border">
-                <span className="text-muted-foreground shrink-0 pt-0.5 w-5">{i + 1}.</span>
-                {r.isCorrect ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                )}
+              <div
+                key={r.questionId}
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both flex items-start gap-3 text-sm bg-card/60 rounded-xl p-3 border border-border/50"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <span className="text-muted-foreground/60 shrink-0 pt-0.5 w-4 text-xs font-mono">{i + 1}</span>
+                {r.isCorrect
+                  ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                  : <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                }
                 <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs line-clamp-2">{questions[i]?.prompt}</p>
+                  <p className="text-muted-foreground text-xs line-clamp-2 leading-relaxed">{questions[i]?.prompt}</p>
                   {!r.isCorrect && (
-                    <p className="text-xs mt-1">
-                      <span className="text-green-400 font-medium">{r.correctAnswer}</span>
+                    <p className="text-xs mt-1 flex gap-2 flex-wrap">
+                      <span className="text-green-400 font-semibold">{r.correctAnswer}</span>
                       {r.submittedAnswer && (
-                        <span className="text-muted-foreground ml-2">· you said: {r.submittedAnswer}</span>
+                        <span className="text-muted-foreground/60">you: {r.submittedAnswer}</span>
                       )}
                     </p>
                   )}
                 </div>
-                <Badge variant="outline" className="font-mono text-xs shrink-0">{r.score}</Badge>
+                <Badge variant="outline" className="font-mono text-xs shrink-0 tabular-nums">{r.score}</Badge>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex gap-3 w-full pt-1">
-          <Button variant="outline" className="flex-1 h-12" onClick={handleShare}>
+        <div className="flex gap-3 w-full">
+          <Button variant="outline" className="flex-1 h-12 hover:scale-[1.02] transition-transform" onClick={handleShare}>
             <Share2 className="h-4 w-4 mr-2" />Share
           </Button>
-          <Button className="flex-1 h-12" onClick={() => (window.location.href = "/")}>
-            Back to Home
+          <Button className="flex-1 h-12 hover:scale-[1.02] transition-transform" onClick={() => (window.location.href = "/")}>
+            Home
           </Button>
         </div>
       </div>
@@ -365,21 +393,22 @@ export function QuizRunner({
 
   // ── ANSWERING ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4 w-full px-1">
-      {/* Progress */}
+    <div className="animate-in fade-in duration-300 flex flex-col gap-4 w-full px-1">
+      {/* Progress dots */}
       <div className="flex items-center justify-between text-sm px-1">
-        <span className="text-muted-foreground font-medium">
-          {currentIdx + 1} <span className="text-muted-foreground/50">/ {totalQuestions}</span>
+        <span className="text-muted-foreground font-semibold tabular-nums">
+          {currentIdx + 1}
+          <span className="text-muted-foreground/40 font-normal"> / {totalQuestions}</span>
         </span>
         <div className="flex gap-1.5">
           {questions.map((_, i) => (
             <div
               key={i}
-              className={`h-1.5 rounded-full transition-all ${
+              className={`h-1.5 rounded-full transition-all duration-500 ${
                 i < currentIdx
-                  ? "bg-muted-foreground/40 w-5"
+                  ? "bg-primary/30 w-5"
                   : i === currentIdx
-                  ? "bg-primary w-7"
+                  ? "bg-primary w-8"
                   : "bg-muted w-5"
               }`}
             />
@@ -395,9 +424,12 @@ export function QuizRunner({
         onExpire={handleTimerExpire}
       />
 
-      {/* Question card */}
-      <Card className="shadow-sm">
-        <CardHeader className="pb-3 pt-5 px-4 sm:px-6">
+      {/* Question card — remounts per question so animation always fires */}
+      <Card
+        key={`q-${currentIdx}`}
+        className="animate-in fade-in slide-in-from-bottom-3 duration-350 shadow-md border-border/60"
+      >
+        <CardHeader className="pb-2 pt-5 px-4 sm:px-6">
           <CardTitle className="text-base sm:text-lg leading-snug font-semibold">
             {currentQuestion.prompt}
           </CardTitle>
@@ -406,29 +438,55 @@ export function QuizRunner({
           {currentQuestion.choices.map((choice, idx) => {
             const letter = ["A", "B", "C", "D"][idx];
             const isSelected = selectedChoice === choice;
+            const isLocked = submitting;
+            const isOther = isLocked && !isSelected;
+
             return (
               <button
                 key={choice}
                 onClick={() => handleChoiceSelect(choice)}
-                disabled={submitting}
-                className={`
-                  w-full flex items-center gap-3 rounded-xl border px-4 py-3.5
-                  text-left text-sm sm:text-base font-medium
-                  transition-all duration-150 min-h-[52px]
-                  ${submitting ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-primary/60 hover:bg-primary/5 active:scale-[0.99]"}
-                  ${isSelected
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-card text-foreground"
-                  }
-                `}
+                disabled={isLocked}
+                className={[
+                  // Base
+                  "animate-in fade-in slide-in-from-bottom-2 fill-mode-both",
+                  "w-full flex items-center gap-3 rounded-xl border px-4 py-3.5",
+                  "text-left text-sm sm:text-base font-medium",
+                  "transition-all duration-200 min-h-[54px]",
+                  // Hover / active (when not locked)
+                  !isLocked && "hover:border-primary/50 hover:bg-primary/5 hover:scale-[1.01] active:scale-[0.99] cursor-pointer",
+                  // Selected + submitting: pulse glow
+                  isSelected && "border-primary bg-primary/12 scale-[1.01]",
+                  isSelected && isLocked && "animate-glow-pulse",
+                  // Other choices fade out while waiting
+                  isOther && "opacity-35 cursor-not-allowed",
+                  // Default unselected
+                  !isSelected && "border-border bg-card cursor-pointer",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{ animationDelay: `${idx * 55}ms` }}
               >
-                <span className={`
-                  shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
-                  ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
-                `}>
+                <span
+                  className={[
+                    "shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200",
+                    isSelected
+                      ? "bg-primary text-primary-foreground scale-110"
+                      : "bg-muted/60 text-muted-foreground",
+                  ].join(" ")}
+                >
                   {letter}
                 </span>
                 <span className="leading-snug">{choice}</span>
+
+                {/* Submitting spinner on selected */}
+                {isSelected && isLocked && (
+                  <span className="ml-auto shrink-0">
+                    <svg className="animate-spin h-4 w-4 text-primary/60" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  </span>
+                )}
               </button>
             );
           })}
