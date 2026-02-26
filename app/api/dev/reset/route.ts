@@ -13,15 +13,25 @@ export async function POST() {
 
   const today = todayLocal();
 
-  // Delete attempts first
+  // Delete AttemptAnswers first (child records — no cascade in schema)
+  const attempts = await db.attempt.findMany({
+    where: { date: today },
+    select: { id: true },
+  });
+  const attemptIds = attempts.map((a) => a.id);
+  const { count: deletedAnswers } = await db.attemptAnswer.deleteMany({
+    where: { attemptId: { in: attemptIds } },
+  });
+
+  // Now delete Attempts
   const { count: deletedAttempts } = await db.attempt.deleteMany({ where: { date: today } });
 
-  // Delete daily sets so they regenerate fresh (MC-only) on next visit
+  // Delete DailySetQuestions then DailySets so they regenerate fresh on next visit
   const dailySets = await db.dailySet.findMany({ where: { date: today } });
   for (const ds of dailySets) {
     await db.dailySetQuestion.deleteMany({ where: { dailySetId: ds.id } });
   }
   const { count: deletedSets } = await db.dailySet.deleteMany({ where: { date: today } });
 
-  return NextResponse.json({ ok: true, deletedAttempts, deletedSets, date: today });
+  return NextResponse.json({ ok: true, deletedAnswers, deletedAttempts, deletedSets, date: today });
 }
