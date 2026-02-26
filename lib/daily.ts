@@ -90,3 +90,27 @@ export function isValidSport(s: string): s is Sport {
 export function isValidDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
+
+/**
+ * Generates 4 shuffled answer choices for a MC question:
+ * the correct answer + 3 distinct distractors drawn from other questions.
+ * Deterministic: same date+questionId always produces the same choices.
+ */
+export function generateMCChoices(
+  questionId: string,
+  correctAnswer: string,
+  allAnswers: { id: string; answer: string }[],
+  seed: string
+): string[] {
+  const distractors = allAnswers
+    .filter(
+      (q) =>
+        q.id !== questionId &&
+        q.answer.toLowerCase() !== correctAnswer.toLowerCase()
+    )
+    .map((q) => q.answer);
+
+  const shuffled = deterministicShuffle(distractors, `${seed}-d`);
+  const picked = shuffled.slice(0, 3);
+  return deterministicShuffle([correctAnswer, ...picked], `${seed}-o`);
+}

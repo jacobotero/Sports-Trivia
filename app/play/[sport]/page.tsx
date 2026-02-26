@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getOrCreateDailySet, isValidSport, todayString } from "@/lib/daily";
+import { getOrCreateDailySet, generateMCChoices, isValidSport, todayString } from "@/lib/daily";
 import { Sport } from "@prisma/client";
 import { QuizRunner } from "@/components/QuizRunner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -89,11 +89,25 @@ export default async function PlayPage({ params }: PlayPageProps) {
     );
   }
 
+  // Fetch all answers for this sport to use as MC distractors
+  const allSportAnswers = await db.question.findMany({
+    where: { sport },
+    select: { id: true, answer: true },
+  });
+
   const questions = dailySet.questions.map(({ question, order }) => ({
     id: question.id,
     prompt: question.prompt,
     type: question.type as "MULTIPLE_CHOICE" | "FILL_BLANK",
-    choices: question.choices,
+    choices:
+      question.type === "MULTIPLE_CHOICE"
+        ? generateMCChoices(
+            question.id,
+            question.answer,
+            allSportAnswers,
+            `${date}-${question.id}`
+          )
+        : [],
     order,
   }));
 

@@ -40,7 +40,7 @@ interface QuestionResult {
   timeTakenMs: number;
 }
 
-type PhaseType = "pre" | "answering" | "reveal" | "done";
+type PhaseType = "pre" | "answering" | "done";
 
 export function QuizRunner({
   sport,
@@ -57,7 +57,6 @@ export function QuizRunner({
   const [timerRunning, setTimerRunning] = useState(false);
   const [fillAnswer, setFillAnswer] = useState("");
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
-  const [currentResult, setCurrentResult] = useState<QuestionResult | null>(null);
   const [finalSummary, setFinalSummary] = useState<{
     totalScore: number;
     xpEarned: number;
@@ -75,7 +74,6 @@ export function QuizRunner({
     setTimerRunning(true);
     setFillAnswer("");
     setSelectedChoice(null);
-    setCurrentResult(null);
     questionStartRef.current = Date.now();
   }, []);
 
@@ -116,16 +114,51 @@ export function QuizRunner({
           timeTakenMs,
         };
 
-        setCurrentResult(result);
-        setResults((prev) => [...prev, result]);
-        setPhase("reveal");
+        const newResults = [...results, result];
+        setResults(newResults);
+
+        const isLast = currentIdx === totalQuestions - 1;
+
+        if (isLast) {
+          // Complete the attempt
+          if (session?.user?.id && attemptIdRef.current) {
+            try {
+              const completeRes = await fetch("/api/attempt/complete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ attemptId: attemptIdRef.current }),
+              });
+              const completeData = await completeRes.json();
+              if (completeRes.ok) {
+                setFinalSummary({
+                  totalScore: completeData.totalScore,
+                  xpEarned: completeData.xpEarned,
+                  rankXp: completeData.rank?.xpTotal ?? 0,
+                });
+                localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+                setPhase("done");
+                return;
+              }
+            } catch {
+              // fall through to guest done
+            }
+          }
+          // Guest or fallback
+          const totalScore = newResults.reduce((s, r) => s + r.score, 0);
+          localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+          setFinalSummary({ totalScore, xpEarned: 0, rankXp: 0 });
+          setPhase("done");
+        } else {
+          setCurrentIdx((i) => i + 1);
+          setPhase("pre");
+        }
       } catch {
         toast.error("Failed to submit answer. Please try again.");
       } finally {
         setSubmitting(false);
       }
     },
-    [phase, submitting, currentQuestion]
+    [phase, submitting, currentQuestion, results, currentIdx, totalQuestions, session, date, sport]
   );
 
   const handleTimerExpire = useCallback(() => {
@@ -146,49 +179,10 @@ export function QuizRunner({
     submitAnswer(fillAnswer.trim());
   }, [fillAnswer, phase, submitAnswer]);
 
-  const handleNext = useCallback(async () => {
-    if (currentIdx < totalQuestions - 1) {
-      setCurrentIdx((i) => i + 1);
-      setPhase("pre");
-    } else {
-      // Quiz complete
-      if (session?.user?.id && attemptIdRef.current) {
-        try {
-          const res = await fetch("/api/attempt/complete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ attemptId: attemptIdRef.current }),
-          });
-          const data = await res.json();
-          if (res.ok) {
-            setFinalSummary({
-              totalScore: data.totalScore,
-              xpEarned: data.xpEarned,
-              rankXp: data.rank?.xpTotal ?? 0,
-            });
-            // Mark as played in localStorage
-            localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
-            setPhase("done");
-            return;
-          }
-        } catch {
-          // fall through to guest done
-        }
-      }
-
-      // Guest or fallback
-      const totalScore = results.reduce((s, r) => s + r.score, 0) + (currentResult?.score ?? 0);
-      localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
-      setFinalSummary({ totalScore, xpEarned: 0, rankXp: 0 });
-      setPhase("done");
-    }
-  }, [currentIdx, totalQuestions, session, date, sport, results, currentResult]);
-
   const handleShare = useCallback(() => {
-    const allResults = [...results];
-    const score = allResults.reduce((s, r) => s + r.score, 0);
-    const correct = allResults.filter((r) => r.isCorrect).length;
-    const emojis = allResults.map((r) => (r.isCorrect ? "✅" : "❌")).join("");
+    const score = results.reduce((s, r) => s + r.score, 0);
+    const correct = results.filter((r) => r.isCorrect).length;
+    const emojis = results.map((r) => (r.isCorrect ? "✅" : "❌")).join("");
 
     const text = `Sportsdle ${sport} — ${date}\n${emojis}\n${correct}/${totalQuestions} correct · ${score} pts\nPlay at sportsdle.app`;
     navigator.clipboard.writeText(text).then(() => toast.success("Copied to clipboard!"));
@@ -212,7 +206,7 @@ export function QuizRunner({
         </div>
         <Button size="lg" className="px-8 font-bold" onClick={startQuestion}>
           <Play className="h-5 w-5 mr-2" />
-          {isFirst ? "Start Quiz" : "Start Next Question"}
+          {isFirst ? "Start Quiz" : "Next Question"}
         </Button>
       </div>
     );
@@ -269,16 +263,24 @@ export function QuizRunner({
           <p className="text-sm font-medium text-muted-foreground mb-2">Breakdown</p>
           <div className="flex flex-col gap-2">
             {results.map((r, i) => (
-              <div key={r.questionId} className="flex items-center gap-3 text-sm">
-                <span className="text-muted-foreground w-4">{i + 1}.</span>
+              <div key={r.questionId} className="flex items-start gap-3 text-sm">
+                <span className="text-muted-foreground w-4 shrink-0 pt-0.5">{i + 1}.</span>
                 {r.isCorrect ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                 ) : (
-                  <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                  <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                 )}
-                <span className="flex-1 truncate text-muted-foreground">
-                  {questions[i]?.prompt}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-muted-foreground truncate">{questions[i]?.prompt}</p>
+                  {!r.isCorrect && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Answer: <strong className="text-foreground">{r.correctAnswer}</strong>
+                      {r.submittedAnswer && (
+                        <span className="ml-2 text-red-400">You: {r.submittedAnswer}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
                 <Badge variant="outline" className="font-mono text-xs shrink-0">
                   {r.score}
                 </Badge>
@@ -300,7 +302,7 @@ export function QuizRunner({
     );
   }
 
-  // ── ANSWERING / REVEAL ────────────────────────────────────────────────────
+  // ── ANSWERING ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-5 max-w-xl mx-auto w-full">
       {/* Header */}
@@ -314,9 +316,7 @@ export function QuizRunner({
               key={i}
               className={`h-1.5 w-6 rounded-full ${
                 i < currentIdx
-                  ? results[i]?.isCorrect
-                    ? "bg-green-500"
-                    : "bg-red-500"
+                  ? "bg-muted-foreground/40"
                   : i === currentIdx
                   ? "bg-primary"
                   : "bg-muted"
@@ -345,27 +345,16 @@ export function QuizRunner({
             <div className="grid gap-2">
               {currentQuestion.choices.map((choice) => {
                 const isSelected = selectedChoice === choice;
-                const isRevealed = phase === "reveal";
-                const isCorrectChoice =
-                  isRevealed && currentResult?.correctAnswer === choice;
-                const isWrongSelected =
-                  isRevealed && isSelected && !currentResult?.isCorrect;
 
                 return (
                   <Button
                     key={choice}
                     variant="outline"
                     className={`justify-start h-auto py-3 px-4 text-left whitespace-normal ${
-                      isCorrectChoice
-                        ? "border-green-500 bg-green-500/10 text-green-400"
-                        : isWrongSelected
-                        ? "border-red-500 bg-red-500/10 text-red-400"
-                        : isSelected && !isRevealed
-                        ? "border-primary bg-primary/10"
-                        : ""
+                      isSelected ? "border-primary bg-primary/10" : ""
                     }`}
                     onClick={() => handleChoiceSelect(choice)}
-                    disabled={phase === "reveal" || submitting}
+                    disabled={submitting}
                   >
                     <span className="text-sm">{choice}</span>
                   </Button>
@@ -379,61 +368,21 @@ export function QuizRunner({
                 value={fillAnswer}
                 onChange={(e) => setFillAnswer(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleFillSubmit()}
-                disabled={phase === "reveal" || submitting}
-                className={
-                  phase === "reveal"
-                    ? currentResult?.isCorrect
-                      ? "border-green-500"
-                      : "border-red-500"
-                    : ""
-                }
+                disabled={submitting}
               />
               <Button
                 onClick={handleFillSubmit}
-                disabled={!fillAnswer.trim() || phase === "reveal" || submitting}
+                disabled={!fillAnswer.trim() || submitting}
               >
                 Submit
               </Button>
             </div>
           )}
 
-          {/* Reveal feedback */}
-          {phase === "reveal" && currentResult && (
-            <div
-              className={`flex items-start gap-3 p-3 rounded-lg border ${
-                currentResult.isCorrect
-                  ? "bg-green-500/10 border-green-500/30"
-                  : "bg-red-500/10 border-red-500/30"
-              }`}
-            >
-              {currentResult.isCorrect ? (
-                <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-              ) : (
-                <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-              )}
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-sm">
-                  {currentResult.isCorrect ? "Correct!" : "Incorrect"}
-                </span>
-                {!currentResult.isCorrect && (
-                  <span className="text-xs text-muted-foreground">
-                    Answer: <strong>{currentResult.correctAnswer}</strong>
-                  </span>
-                )}
-                <span className="text-xs text-muted-foreground font-mono">
-                  +{currentResult.score} pts
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Next button */}
-          {phase === "reveal" && (
-            <Button onClick={handleNext} className="mt-2 font-semibold">
-              {currentIdx < totalQuestions - 1
-                ? "Start Next Question →"
-                : "See Results 🏆"}
-            </Button>
+          {submitting && (
+            <p className="text-xs text-muted-foreground text-center animate-pulse">
+              Submitting...
+            </p>
           )}
         </CardContent>
       </Card>
