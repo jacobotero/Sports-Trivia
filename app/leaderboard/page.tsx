@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { xpToLevel } from "@/lib/levels";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
@@ -47,17 +48,25 @@ function LeaderboardTable({ entries }: { entries: { place: number; name: string;
   }
   return (
     <div className="divide-y divide-border">
-      {entries.map((e) => (
-        <div key={e.place} className="flex items-center gap-4 py-3 px-1">
-          <span className="w-8 text-center font-mono text-sm font-semibold text-muted-foreground">
-            {MEDALS[e.place] ?? `#${e.place}`}
-          </span>
-          <span className="flex-1 font-medium truncate">{e.name}</span>
-          <span className="font-mono text-sm font-semibold tabular-nums text-yellow-400">
-            {e.xp.toLocaleString()} XP
-          </span>
-        </div>
-      ))}
+      {entries.map((e) => {
+        const level = xpToLevel(e.xp);
+        return (
+          <div key={e.place} className="flex items-center gap-4 py-3 px-1">
+            <span className="w-8 text-center font-mono text-sm font-semibold text-muted-foreground">
+              {MEDALS[e.place] ?? `#${e.place}`}
+            </span>
+            <span className="flex-1 font-medium truncate">{e.name}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
+                Lv.{level}
+              </span>
+              <span className="font-mono text-sm font-semibold tabular-nums text-yellow-400">
+                {e.xp.toLocaleString()} XP
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

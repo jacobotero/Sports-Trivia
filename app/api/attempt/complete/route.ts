@@ -3,7 +3,8 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { computeXpEarned, computeRank } from "@/lib/rank";
+import { computeXpEarned } from "@/lib/rank";
+import { xpToLevel } from "@/lib/levels";
 import { Sport } from "@prisma/client";
 
 const schema = z.object({
@@ -43,13 +44,20 @@ export async function POST(req: Request) {
     const totalScore = attempt.answers.reduce((sum, a) => sum + a.score, 0);
     const xpEarned = computeXpEarned(totalScore);
 
-    // Update attempt
+    // Capture XP before update so we can compute level-up on the client
+    const existingUserSport = await db.userSport.findUnique({
+      where: { userId_sport: { userId, sport: attempt.sport as Sport } },
+      select: { xpTotal: true },
+    });
+    const previousXp = existingUserSport?.xpTotal ?? 0;
+
+    // Mark attempt complete
     await db.attempt.update({
       where: { id: attemptId },
       data: { completedAt: new Date(), totalScore, xpEarned },
     });
 
-    // Update or create UserSport XP
+    // Update UserSport XP
     const userSport = await db.userSport.upsert({
       where: { userId_sport: { userId, sport: attempt.sport as Sport } },
       update: { xpTotal: { increment: xpEarned } },
@@ -57,18 +65,16 @@ export async function POST(req: Request) {
     });
 
     const newXp = userSport.xpTotal;
-    const rankInfo = computeRank(newXp);
-
-    // Update rank tier and division
-    await db.userSport.update({
-      where: { userId_sport: { userId, sport: attempt.sport as Sport } },
-      data: { rankTier: rankInfo.tier, division: rankInfo.division },
-    });
+    const previousLevel = xpToLevel(previousXp);
+    const newLevel = xpToLevel(newXp);
 
     return NextResponse.json({
       totalScore,
       xpEarned,
-      rank: rankInfo,
+      previousXp,
+      newXp,
+      previousLevel,
+      newLevel,
     });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

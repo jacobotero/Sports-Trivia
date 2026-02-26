@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TimerBar } from "@/components/TimerBar";
-import { CheckCircle2, XCircle, Trophy, Share2, Play } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Share2, Play, Star } from "lucide-react";
 import { toast } from "sonner";
+import { xpProgress } from "@/lib/levels";
 
 const TIMER_MS = 10_000;
 const BETWEEN_MS = 2_000;
@@ -55,9 +56,7 @@ function CountdownRing({
 
   return (
     <div className="flex flex-col items-center gap-5">
-      {/* Ring */}
       <div className="relative" style={{ width: 140, height: 140 }}>
-        {/* Outer glow */}
         <div
           className="absolute inset-0 rounded-full opacity-20 blur-xl"
           style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)" }}
@@ -74,7 +73,6 @@ function CountdownRing({
               <stop offset="100%" stopColor="#a855f7" />
             </linearGradient>
           </defs>
-          {/* Track */}
           <circle
             cx="70" cy="70" r={r}
             fill="none"
@@ -82,7 +80,6 @@ function CountdownRing({
             strokeWidth="6"
             className="text-white/8"
           />
-          {/* Draining arc */}
           <circle
             cx="70" cy="70" r={r}
             fill="none"
@@ -98,7 +95,6 @@ function CountdownRing({
             } as React.CSSProperties}
           />
         </svg>
-        {/* Center number */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-4xl font-black text-white leading-none">{nextQNum}</span>
           <span className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mt-0.5">
@@ -106,11 +102,77 @@ function CountdownRing({
           </span>
         </div>
       </div>
-
       <div className="text-center">
         <p className="text-[11px] uppercase tracking-[0.2em] text-white/40 font-semibold">
           Next Question
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ── XP bar with level-up animation ───────────────────────────────────────────
+function XpAnimBar({
+  previousXp,
+  newXp,
+  xpEarned,
+  previousLevel,
+  newLevel,
+}: {
+  previousXp: number;
+  newXp: number;
+  xpEarned: number;
+  previousLevel: number;
+  newLevel: number;
+}) {
+  const leveled = newLevel > previousLevel;
+  const curr = xpProgress(newXp);
+  const prev = xpProgress(previousXp);
+
+  // If leveled up, start bar from 0 (fresh level), otherwise from previous progress
+  const startPct = leveled ? 0 : Math.round(prev.progress * 100);
+  const endPct = Math.round(curr.progress * 100);
+
+  const [pct, setPct] = useState(startPct);
+  const [showLevelUp, setShowLevelUp] = useState(false);
+
+  useEffect(() => {
+    if (leveled) {
+      const t1 = setTimeout(() => setShowLevelUp(true), 150);
+      const t2 = setTimeout(() => setPct(endPct), 500);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    } else {
+      const t = setTimeout(() => setPct(endPct), 400);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {showLevelUp && (
+        <div className="animate-pop-in flex items-center justify-center gap-2 py-1">
+          <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+          <span className="font-black text-yellow-400 tracking-wide">LEVEL UP!</span>
+          <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+        </div>
+      )}
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-1.5">
+          <span className="font-black text-base">Lv.{newLevel}</span>
+          {xpEarned > 0 && (
+            <span className="text-xs text-indigo-400 font-semibold">+{xpEarned} XP</span>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {curr.xpIntoLevel.toLocaleString()} / {curr.xpNeeded.toLocaleString()} XP
+        </span>
+      </div>
+      <div className="h-2.5 rounded-full bg-muted/40 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000 ease-out"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -135,6 +197,10 @@ export function QuizRunner({
   const [finalSummary, setFinalSummary] = useState<{
     totalScore: number;
     xpEarned: number;
+    previousXp: number;
+    newXp: number;
+    previousLevel: number;
+    newLevel: number;
   } | null>(null);
   const attemptIdRef = useRef(initialAttemptId);
   const questionStartRef = useRef<number>(0);
@@ -176,6 +242,10 @@ export function QuizRunner({
             setFinalSummary({
               totalScore: data.totalScore,
               xpEarned: data.xpEarned,
+              previousXp: data.previousXp ?? 0,
+              newXp: data.newXp ?? 0,
+              previousLevel: data.previousLevel ?? 1,
+              newLevel: data.newLevel ?? 1,
             });
             localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
             setPhase("done");
@@ -185,7 +255,7 @@ export function QuizRunner({
       }
       const totalScore = newResults.reduce((s, r) => s + r.score, 0);
       localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
-      setFinalSummary({ totalScore, xpEarned: 0 });
+      setFinalSummary({ totalScore, xpEarned: 0, previousXp: 0, newXp: 0, previousLevel: 1, newLevel: 1 });
       setPhase("done");
     },
     [session, date, sport]
@@ -306,6 +376,8 @@ export function QuizRunner({
   // ── DONE ──────────────────────────────────────────────────────────────────
   if (phase === "done" && finalSummary) {
     const correct = results.filter((r) => r.isCorrect).length;
+    const showXpBar = session && finalSummary.xpEarned > 0;
+
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center gap-5 py-4 max-w-lg mx-auto w-full px-2">
         <div className="text-center animate-pop-in">
@@ -326,11 +398,18 @@ export function QuizRunner({
               <span className="text-muted-foreground">Correct</span>
               <span className="font-bold">{correct} / {totalQuestions}</span>
             </div>
-            {session && finalSummary.xpEarned > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">XP Earned</span>
-                <span className="font-bold text-yellow-400">+{finalSummary.xpEarned} XP</span>
-              </div>
+
+            {showXpBar && (
+              <>
+                <div className="border-t border-border/40 my-1" />
+                <XpAnimBar
+                  previousXp={finalSummary.previousXp}
+                  newXp={finalSummary.newXp}
+                  xpEarned={finalSummary.xpEarned}
+                  previousLevel={finalSummary.previousLevel}
+                  newLevel={finalSummary.newLevel}
+                />
+              </>
             )}
           </CardContent>
         </Card>
@@ -435,19 +514,14 @@ export function QuizRunner({
                 onClick={() => handleChoiceSelect(choice)}
                 disabled={isLocked}
                 className={[
-                  // Base
                   "animate-in fade-in slide-in-from-bottom-2 fill-mode-both",
                   "w-full flex items-center gap-3 rounded-xl border px-4 py-3.5",
                   "text-left text-sm sm:text-base font-medium",
                   "transition-all duration-200 min-h-[54px]",
-                  // Hover / active (when not locked)
                   !isLocked && "hover:border-primary/50 hover:bg-primary/5 hover:scale-[1.01] active:scale-[0.99] cursor-pointer",
-                  // Selected + submitting: pulse glow
                   isSelected && "border-primary bg-primary/12 scale-[1.01]",
                   isSelected && isLocked && "animate-glow-pulse",
-                  // Other choices fade out while waiting
                   isOther && "opacity-35 cursor-not-allowed",
-                  // Default unselected
                   !isSelected && "border-border bg-card cursor-pointer",
                 ]
                   .filter(Boolean)
