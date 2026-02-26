@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, RotateCcw, Zap, Timer, Trophy } from "lucide-react";
 
 const IS_DEV = process.env.NODE_ENV === "development";
-const SPORTS = ["MLB", "NFL", "NBA", "NHL"] as const;
+const SPORTS = ["MLB", "NFL", "NBA"] as const;
 
 function todayStr() {
   const d = new Date();
@@ -24,9 +24,9 @@ function getPlayedFromStorage(date: string) {
 }
 
 const HOW_TO = [
-  { icon: Zap,   title: "8 Questions",      desc: "Multiple choice questions across your favourite sport." },
-  { icon: Timer, title: "10 Second Timer",   desc: "Answer fast — your score is based on speed and accuracy." },
-  { icon: Trophy, title: "Earn XP & Rank",  desc: "Sign in to climb from Bronze to Diamond and challenge friends." },
+  { icon: Zap,    title: "8 Questions",     desc: "Multiple choice questions across your favourite sport." },
+  { icon: Timer,  title: "10 Second Timer", desc: "Answer fast — your score is based on speed and accuracy." },
+  { icon: Trophy, title: "Earn XP",         desc: "Sign in to earn XP and climb the leaderboard." },
 ];
 
 export default function HomePage() {
@@ -58,8 +58,6 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-10">
-
-      {/* Hero */}
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-center flex flex-col gap-3 pt-6 pb-2">
         <h1 className="text-5xl sm:text-6xl font-black tracking-tight">
           <span className="text-primary">Sports</span>
@@ -72,21 +70,14 @@ export default function HomePage() {
           <Calendar className="h-3.5 w-3.5" />
           <span>{displayDate}</span>
         </div>
-
         <div className="flex items-center justify-center gap-2 flex-wrap">
           {!session && (
             <Badge variant="secondary" className="text-xs px-3 py-1">
-              Sign in to track XP, ranks &amp; compete with friends
+              Sign in to track XP &amp; compete with friends
             </Badge>
           )}
           {IS_DEV && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDevReset}
-              disabled={resetting}
-              className="text-xs text-muted-foreground border-dashed h-7"
-            >
+            <Button variant="outline" size="sm" onClick={handleDevReset} disabled={resetting} className="text-xs text-muted-foreground border-dashed h-7">
               <RotateCcw className="h-3 w-3 mr-1" />
               {resetting ? "Resetting..." : "Reset Today (Dev)"}
             </Button>
@@ -94,36 +85,23 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Sport tiles — staggered entrance */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {SPORTS.map((sport, i) => (
           <SportCard
             key={sport}
             sport={sport}
             played={Boolean(played[sport])}
-            style={
-              mounted
-                ? {
-                    animation: `fade-in-up 0.45s cubic-bezier(0.22,1,0.36,1) ${i * 80}ms both`,
-                  }
-                : { opacity: 0 }
-            }
+            style={mounted ? { animation: `fade-in-up 0.45s cubic-bezier(0.22,1,0.36,1) ${i * 80}ms both` } : { opacity: 0 }}
           />
         ))}
       </div>
 
-      {/* How to play */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {HOW_TO.map(({ icon: Icon, title, desc }, i) => (
           <div
             key={title}
-            className="flex items-start gap-3.5 p-4 rounded-2xl border border-border/60 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:border-border hover:bg-card/60"
-            style={{
-              animation: mounted
-                ? `fade-in-up 0.45s cubic-bezier(0.22,1,0.36,1) ${(SPORTS.length + i) * 80}ms both`
-                : undefined,
-              opacity: mounted ? undefined : 0,
-            }}
+            className="flex items-start gap-3.5 p-4 rounded-2xl border border-border/60 bg-card/40 transition-all duration-300 hover:border-border hover:bg-card/60"
+            style={mounted ? { animation: `fade-in-up 0.45s cubic-bezier(0.22,1,0.36,1) ${(SPORTS.length + i) * 80}ms both` } : { opacity: 0 }}
           >
             <div className="mt-0.5 p-2 rounded-lg bg-primary/10 shrink-0">
               <Icon className="h-4 w-4 text-primary" />
@@ -135,7 +113,6 @@ export default function HomePage() {
           </div>
         ))}
       </div>
-
     </div>
   );
 }

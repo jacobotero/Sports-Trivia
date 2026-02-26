@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, PlayCircle } from "lucide-react";
 
 interface SportCardProps {
-  sport: "MLB" | "NFL" | "NBA" | "NHL";
+  sport: "MLB" | "NFL" | "NBA";
   played?: boolean;
   score?: number;
   style?: React.CSSProperties;
@@ -42,16 +42,6 @@ const SPORT_CONFIG = {
     accent: "text-orange-400",
     ring: "group-hover:ring-orange-500/30",
     shimmer: "from-orange-400/0 via-orange-400/10 to-orange-400/0",
-  },
-  NHL: {
-    label: "Hockey",
-    emoji: "🏒",
-    gradient: "from-blue-950/80 via-blue-900/40 to-blue-800/20",
-    border: "border-blue-700/40",
-    glow: "group-hover:shadow-blue-500/20",
-    accent: "text-blue-400",
-    ring: "group-hover:ring-blue-500/30",
-    shimmer: "from-blue-400/0 via-blue-400/10 to-blue-400/0",
   },
 };
 

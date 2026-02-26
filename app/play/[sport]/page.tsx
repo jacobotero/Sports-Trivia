@@ -14,7 +14,7 @@ const SPORT_LABELS: Record<string, string> = {
   mlb: "MLB Baseball",
   nfl: "NFL Football",
   nba: "NBA Basketball",
-  nhl: "NHL Hockey",
+
 };
 
 interface PlayPageProps {

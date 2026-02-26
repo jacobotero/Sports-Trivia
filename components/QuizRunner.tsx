@@ -6,10 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TimerBar } from "@/components/TimerBar";
-import { RankBadge } from "@/components/RankBadge";
 import { CheckCircle2, XCircle, Trophy, Share2, Play } from "lucide-react";
 import { toast } from "sonner";
-import { computeRank } from "@/lib/rank";
 
 const TIMER_MS = 10_000;
 const BETWEEN_MS = 2_000;
@@ -137,7 +135,6 @@ export function QuizRunner({
   const [finalSummary, setFinalSummary] = useState<{
     totalScore: number;
     xpEarned: number;
-    rankXp: number;
   } | null>(null);
   const attemptIdRef = useRef(initialAttemptId);
   const questionStartRef = useRef<number>(0);
@@ -179,7 +176,6 @@ export function QuizRunner({
             setFinalSummary({
               totalScore: data.totalScore,
               xpEarned: data.xpEarned,
-              rankXp: data.rank?.xpTotal ?? 0,
             });
             localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
             setPhase("done");
@@ -189,7 +185,7 @@ export function QuizRunner({
       }
       const totalScore = newResults.reduce((s, r) => s + r.score, 0);
       localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
-      setFinalSummary({ totalScore, xpEarned: 0, rankXp: 0 });
+      setFinalSummary({ totalScore, xpEarned: 0 });
       setPhase("done");
     },
     [session, date, sport]
@@ -310,8 +306,6 @@ export function QuizRunner({
   // ── DONE ──────────────────────────────────────────────────────────────────
   if (phase === "done" && finalSummary) {
     const correct = results.filter((r) => r.isCorrect).length;
-    const rankInfo = session && finalSummary.rankXp > 0 ? computeRank(finalSummary.rankXp) : null;
-
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col items-center gap-5 py-4 max-w-lg mx-auto w-full px-2">
         <div className="text-center animate-pop-in">
@@ -336,12 +330,6 @@ export function QuizRunner({
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">XP Earned</span>
                 <span className="font-bold text-yellow-400">+{finalSummary.xpEarned} XP</span>
-              </div>
-            )}
-            {rankInfo && (
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Rank</span>
-                <RankBadge xpTotal={finalSummary.rankXp} showXp />
               </div>
             )}
           </CardContent>

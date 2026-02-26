@@ -85,7 +85,7 @@ export function todayString(): string {
 }
 
 export function isValidSport(s: string): s is Sport {
-  return ["MLB", "NFL", "NBA", "NHL"].includes(s);
+  return ["MLB", "NFL", "NBA"].includes(s);
 }
 
 export function isValidDate(s: string): boolean {

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
-const SPORTS = ["MLB", "NFL", "NBA", "NHL"] as const;
+const SPORTS = ["MLB", "NFL", "NBA"] as const;
 type Sport = (typeof SPORTS)[number];
 
 interface Question {
@@ -22,7 +22,6 @@ const SPORT_COLORS: Record<Sport, string> = {
   MLB: "bg-red-500/20 text-red-400 border-red-500/30",
   NFL: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   NBA: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  NHL: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
 };
 
 const QUESTIONS_PER_DAY = 8;
