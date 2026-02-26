@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { SportCard } from "@/components/SportCard";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, RotateCcw } from "lucide-react";
+
+const IS_DEV = process.env.NODE_ENV === "development";
 
 const SPORTS = ["MLB", "NFL", "NBA", "NHL"] as const;
 
@@ -25,6 +28,22 @@ export default function HomePage() {
   const { data: session } = useSession();
   const today = todayStr();
   const [played, setPlayed] = useState<Partial<Record<string, number>>>({});
+  const [resetting, setResetting] = useState(false);
+
+  async function handleDevReset() {
+    setResetting(true);
+    try {
+      // Clear localStorage
+      for (const sport of SPORTS) {
+        localStorage.removeItem(`sportsdle_played_${today}_${sport}`);
+      }
+      // Clear DB attempts for today
+      await fetch("/api/dev/reset", { method: "POST" });
+      setPlayed({});
+    } finally {
+      setResetting(false);
+    }
+  }
 
   useEffect(() => {
     setPlayed(getPlayedFromStorage(today));
@@ -56,6 +75,20 @@ export default function HomePage() {
             <Badge variant="secondary" className="text-xs">
               Sign in to track XP, ranks &amp; play with friends
             </Badge>
+          </div>
+        )}
+        {IS_DEV && (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDevReset}
+              disabled={resetting}
+              className="text-xs text-muted-foreground border-dashed"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              {resetting ? "Resetting..." : "Reset Today (Dev)"}
+            </Button>
           </div>
         )}
       </div>
