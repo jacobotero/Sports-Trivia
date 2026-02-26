@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { computeRank } from "@/lib/rank";
 
 const TIMER_MS = 10_000;
-const ADVANCE_DELAY_MS = 900;
+const BETWEEN_MS = 2_000;
 
 interface Question {
   id: string;
@@ -40,7 +40,52 @@ interface QuestionResult {
   timeTakenMs: number;
 }
 
-type PhaseType = "pre" | "answering" | "done";
+type PhaseType = "pre" | "answering" | "between" | "done";
+
+// Circular countdown ring — animates from full to empty over `durationMs`
+function CountdownRing({ durationMs, label }: { durationMs: number; label: string }) {
+  const r = 44;
+  const circ = 2 * Math.PI * r;
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative w-28 h-28 flex items-center justify-center">
+        <svg
+          className="absolute inset-0 -rotate-90"
+          width="112"
+          height="112"
+          viewBox="0 0 112 112"
+        >
+          {/* Track */}
+          <circle cx="56" cy="56" r={r} fill="none" stroke="currentColor" strokeWidth="5" className="text-muted/30" />
+          {/* Animated fill */}
+          <circle
+            cx="56"
+            cy="56"
+            r={r}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="5"
+            strokeLinecap="round"
+            className="text-primary"
+            strokeDasharray={circ}
+            strokeDashoffset={0}
+            style={{
+              animation: `drainRing ${durationMs}ms linear forwards`,
+            }}
+          />
+        </svg>
+        <span className="text-2xl font-black text-foreground z-10">{label}</span>
+      </div>
+      <style>{`
+        @keyframes drainRing {
+          from { stroke-dashoffset: 0; }
+          to   { stroke-dashoffset: ${circ}; }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export function QuizRunner({
   sport,
@@ -52,10 +97,10 @@ export function QuizRunner({
   const { data: session } = useSession();
   const [phase, setPhase] = useState<PhaseType>("pre");
   const [currentIdx, setCurrentIdx] = useState(startIndex);
+  const [nextIdx, setNextIdx] = useState(startIndex);
   const [results, setResults] = useState<QuestionResult[]>([]);
   const [timerRunning, setTimerRunning] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
-  const [advancing, setAdvancing] = useState(false);
   const [finalSummary, setFinalSummary] = useState<{
     totalScore: number;
     xpEarned: number;
@@ -75,54 +120,54 @@ export function QuizRunner({
     questionStartRef.current = Date.now();
   }, []);
 
-  const advanceAfterDelay = useCallback(
-    (newResults: QuestionResult[], isLast: boolean) => {
-      setAdvancing(true);
-      setTimeout(async () => {
-        if (isLast) {
-          if (session?.user?.id && attemptIdRef.current) {
-            try {
-              const res = await fetch("/api/attempt/complete", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ attemptId: attemptIdRef.current }),
-              });
-              const data = await res.json();
-              if (res.ok) {
-                setFinalSummary({
-                  totalScore: data.totalScore,
-                  xpEarned: data.xpEarned,
-                  rankXp: data.rank?.xpTotal ?? 0,
-                });
-                localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
-                setAdvancing(false);
-                setPhase("done");
-                return;
-              }
-            } catch {
-              // fall through
-            }
+  // Auto-advance after BETWEEN_MS when in "between" phase
+  useEffect(() => {
+    if (phase !== "between") return;
+    const t = setTimeout(() => {
+      setCurrentIdx(nextIdx);
+      setSelectedChoice(null);
+      questionStartRef.current = Date.now();
+      setTimerRunning(true);
+      setPhase("answering");
+    }, BETWEEN_MS);
+    return () => clearTimeout(t);
+  }, [phase, nextIdx]);
+
+  const completeQuiz = useCallback(
+    async (newResults: QuestionResult[]) => {
+      if (session?.user?.id && attemptIdRef.current) {
+        try {
+          const res = await fetch("/api/attempt/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ attemptId: attemptIdRef.current }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setFinalSummary({
+              totalScore: data.totalScore,
+              xpEarned: data.xpEarned,
+              rankXp: data.rank?.xpTotal ?? 0,
+            });
+            localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+            setPhase("done");
+            return;
           }
-          const totalScore = newResults.reduce((s, r) => s + r.score, 0);
-          localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
-          setFinalSummary({ totalScore, xpEarned: 0, rankXp: 0 });
-          setAdvancing(false);
-          setPhase("done");
-        } else {
-          setCurrentIdx((i) => i + 1);
-          setSelectedChoice(null);
-          questionStartRef.current = Date.now();
-          setTimerRunning(true);
-          setAdvancing(false);
+        } catch {
+          // fall through
         }
-      }, ADVANCE_DELAY_MS);
+      }
+      const totalScore = newResults.reduce((s, r) => s + r.score, 0);
+      localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+      setFinalSummary({ totalScore, xpEarned: 0, rankXp: 0 });
+      setPhase("done");
     },
     [session, date, sport]
   );
 
   const submitAnswer = useCallback(
     async (answer: string, expired = false) => {
-      if (phase !== "answering" || submitting || advancing) return;
+      if (phase !== "answering" || submitting) return;
 
       setTimerRunning(false);
       setSubmitting(true);
@@ -161,7 +206,13 @@ export function QuizRunner({
         setResults(newResults);
 
         const isLast = currentIdx === totalQuestions - 1;
-        advanceAfterDelay(newResults, isLast);
+
+        if (isLast) {
+          await completeQuiz(newResults);
+        } else {
+          setNextIdx(currentIdx + 1);
+          setPhase("between");
+        }
       } catch {
         toast.error("Failed to submit answer. Try again.");
         setTimerRunning(true);
@@ -169,7 +220,7 @@ export function QuizRunner({
         setSubmitting(false);
       }
     },
-    [phase, submitting, advancing, currentQuestion, results, currentIdx, totalQuestions, advanceAfterDelay]
+    [phase, submitting, currentQuestion, results, currentIdx, totalQuestions, completeQuiz]
   );
 
   const handleTimerExpire = useCallback(() => {
@@ -178,11 +229,11 @@ export function QuizRunner({
 
   const handleChoiceSelect = useCallback(
     (choice: string) => {
-      if (phase !== "answering" || submitting || advancing) return;
+      if (phase !== "answering" || submitting) return;
       setSelectedChoice(choice);
       submitAnswer(choice);
     },
-    [phase, submitting, advancing, submitAnswer]
+    [phase, submitting, submitAnswer]
   );
 
   const handleShare = useCallback(() => {
@@ -193,7 +244,7 @@ export function QuizRunner({
     navigator.clipboard.writeText(text).then(() => toast.success("Copied!"));
   }, [results, sport, date, totalQuestions]);
 
-  // ── PRE (Start Quiz) ──────────────────────────────────────────────────────
+  // ── PRE ───────────────────────────────────────────────────────────────────
   if (phase === "pre") {
     return (
       <div className="flex flex-col items-center gap-6 py-10 px-4">
@@ -210,6 +261,23 @@ export function QuizRunner({
           <Play className="h-5 w-5 mr-2" />
           Start Quiz
         </Button>
+      </div>
+    );
+  }
+
+  // ── BETWEEN ───────────────────────────────────────────────────────────────
+  if (phase === "between") {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-16 px-4">
+        <CountdownRing durationMs={BETWEEN_MS} label={`${nextIdx + 1}`} />
+        <div className="text-center">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">
+            Next up
+          </p>
+          <p className="text-xl font-bold mt-1">
+            Question {nextIdx + 1} <span className="text-muted-foreground font-normal">of {totalQuestions}</span>
+          </p>
+        </div>
       </div>
     );
   }
@@ -296,8 +364,6 @@ export function QuizRunner({
   }
 
   // ── ANSWERING ─────────────────────────────────────────────────────────────
-  const locked = submitting || advancing;
-
   return (
     <div className="flex flex-col gap-4 w-full px-1">
       {/* Progress */}
@@ -344,12 +410,12 @@ export function QuizRunner({
               <button
                 key={choice}
                 onClick={() => handleChoiceSelect(choice)}
-                disabled={locked}
+                disabled={submitting}
                 className={`
                   w-full flex items-center gap-3 rounded-xl border px-4 py-3.5
                   text-left text-sm sm:text-base font-medium
                   transition-all duration-150 min-h-[52px]
-                  ${locked ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:border-primary/60 hover:bg-primary/5 active:scale-[0.99]"}
+                  ${submitting ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-primary/60 hover:bg-primary/5 active:scale-[0.99]"}
                   ${isSelected
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-card text-foreground"
@@ -366,12 +432,6 @@ export function QuizRunner({
               </button>
             );
           })}
-
-          {advancing && (
-            <p className="text-xs text-center text-muted-foreground pt-1 animate-pulse">
-              {currentIdx === totalQuestions - 1 ? "Finishing up..." : "Next question coming up..."}
-            </p>
-          )}
         </CardContent>
       </Card>
     </div>
