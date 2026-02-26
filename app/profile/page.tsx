@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { xpToLevel, xpProgress } from "@/lib/levels";
+import { xpToLevel, xpProgress } from "@/lib/levels"; // xpProgress used for overall bar
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { User, Calendar, Trophy } from "lucide-react";
@@ -80,39 +80,19 @@ export default async function ProfilePage() {
         <div>
           <h2 className="text-base font-semibold mb-3">XP by Sport</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {userSports.filter(us => SPORT_EMOJI[us.sport]).map((us) => {
-              const lvl = xpToLevel(us.xpTotal);
-              const prog = xpProgress(us.xpTotal);
-              return (
-                <Card key={us.sport} className="border-border/50">
-                  <CardContent className="p-4 flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{SPORT_EMOJI[us.sport]}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-sm">{us.sport}</p>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
-                            Lv.{lvl}
-                          </span>
-                        </div>
-                        <p className="text-yellow-400 font-mono text-sm tabular-nums">
-                          {us.xpTotal.toLocaleString()} XP
-                        </p>
-                      </div>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                        style={{ width: `${Math.round(prog.progress * 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/60 tabular-nums text-right">
-                      {prog.xpIntoLevel} / {prog.xpNeeded} to Lv.{lvl + 1}
+            {userSports.filter(us => SPORT_EMOJI[us.sport]).map((us) => (
+              <Card key={us.sport} className="border-border/50">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <span className="text-2xl">{SPORT_EMOJI[us.sport]}</span>
+                  <div>
+                    <p className="font-bold text-sm">{us.sport}</p>
+                    <p className="text-yellow-400 font-mono text-sm tabular-nums">
+                      {us.xpTotal.toLocaleString()} XP
                     </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       )}

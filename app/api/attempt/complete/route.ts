@@ -44,12 +44,12 @@ export async function POST(req: Request) {
     const totalScore = attempt.answers.reduce((sum, a) => sum + a.score, 0);
     const xpEarned = computeXpEarned(totalScore);
 
-    // Capture XP before update so we can compute level-up on the client
-    const existingUserSport = await db.userSport.findUnique({
-      where: { userId_sport: { userId, sport: attempt.sport as Sport } },
+    // Capture total XP across ALL sports before this quiz (account level is global)
+    const allUserSports = await db.userSport.findMany({
+      where: { userId },
       select: { xpTotal: true },
     });
-    const previousXp = existingUserSport?.xpTotal ?? 0;
+    const previousTotalXp = allUserSports.reduce((sum, us) => sum + us.xpTotal, 0);
 
     // Mark attempt complete
     await db.attempt.update({
@@ -57,22 +57,22 @@ export async function POST(req: Request) {
       data: { completedAt: new Date(), totalScore, xpEarned },
     });
 
-    // Update UserSport XP
-    const userSport = await db.userSport.upsert({
+    // Update UserSport XP (for per-sport leaderboard tracking)
+    await db.userSport.upsert({
       where: { userId_sport: { userId, sport: attempt.sport as Sport } },
       update: { xpTotal: { increment: xpEarned } },
       create: { userId, sport: attempt.sport as Sport, xpTotal: xpEarned },
     });
 
-    const newXp = userSport.xpTotal;
-    const previousLevel = xpToLevel(previousXp);
-    const newLevel = xpToLevel(newXp);
+    const newTotalXp = previousTotalXp + xpEarned;
+    const previousLevel = xpToLevel(previousTotalXp);
+    const newLevel = xpToLevel(newTotalXp);
 
     return NextResponse.json({
       totalScore,
       xpEarned,
-      previousXp,
-      newXp,
+      previousXp: previousTotalXp,
+      newXp: newTotalXp,
       previousLevel,
       newLevel,
     });
