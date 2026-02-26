@@ -18,6 +18,12 @@ enum QuestionType {
   FILL_BLANK
 }
 
+enum FriendStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String?
@@ -104,12 +110,10 @@ model AttemptAnswer {
 }
 
 model UserSport {
-  id       String @id @default(cuid())
-  userId   String
-  sport    Sport
-  xpTotal  Int    @default(0)
-  rankTier String @default("Bronze")
-  division Int    @default(3)
+  id      String @id @default(cuid())
+  userId  String
+  sport   Sport
+  xpTotal Int    @default(0)
 
   user User @relation(fields: [userId], references: [id])
 
@@ -117,11 +121,11 @@ model UserSport {
 }
 
 model FriendRequest {
-  id         String   @id @default(cuid())
+  id         String       @id @default(cuid())
   senderId   String
   receiverId String
-  status     String   @default("PENDING")
-  createdAt  DateTime @default(now())
+  status     FriendStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
 
   sender   User @relation("SentRequests", fields: [senderId], references: [id])
   receiver User @relation("ReceivedRequests", fields: [receiverId], references: [id])

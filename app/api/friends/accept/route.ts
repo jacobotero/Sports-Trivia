@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { FriendStatus } from "@prisma/client";
 
 const schema = z.object({ requestId: z.string() });
 
@@ -27,13 +28,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    if (request.status !== "PENDING") {
+    if (request.status !== FriendStatus.PENDING) {
       return NextResponse.json({ error: "Request already handled" }, { status: 409 });
     }
 
     const updated = await db.friendRequest.update({
       where: { id: requestId },
-      data: { status: "ACCEPTED" },
+      data: { status: FriendStatus.ACCEPTED },
     });
 
     return NextResponse.json(updated);

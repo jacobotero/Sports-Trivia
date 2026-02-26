@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeRank } from "@/lib/rank";
+import { FriendStatus } from "@prisma/client";
 
 export async function GET(req: Request) {
   try {
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
     // Verify they are friends
     const friendship = await db.friendRequest.findFirst({
       where: {
-        status: "ACCEPTED",
+        status: FriendStatus.ACCEPTED,
         OR: [
           { senderId: userId, receiverId: friendId },
           { senderId: friendId, receiverId: userId },

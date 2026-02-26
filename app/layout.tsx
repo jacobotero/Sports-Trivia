@@ -16,10 +16,26 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const APP_URL = process.env.NEXTAUTH_URL ?? "https://sportsdle.vercel.app";
+
 export const metadata: Metadata = {
   title: "Sportsdle — Daily Sports Trivia",
   description:
-    "Test your sports knowledge with daily trivia across MLB, NFL, NBA, and NHL. Play for free, track your rank, and challenge friends.",
+    "Test your sports knowledge with daily trivia across MLB, NFL, and NBA. Play for free, earn XP, level up, and challenge friends.",
+  metadataBase: new URL(APP_URL),
+  openGraph: {
+    title: "Sportsdle — Daily Sports Trivia",
+    description:
+      "Test your sports knowledge with daily trivia across MLB, NFL, and NBA. Play for free, earn XP, level up, and challenge friends.",
+    url: APP_URL,
+    siteName: "Sportsdle",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Sportsdle — Daily Sports Trivia",
+    description: "Daily MLB, NFL, and NBA trivia. One shot per day — make it count.",
+  },
 };
 
 export default function RootLayout({

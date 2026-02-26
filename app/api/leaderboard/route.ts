@@ -2,13 +2,19 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isValidSport } from "@/lib/daily";
 import { Sport } from "@prisma/client";
+import { apiLimiter, checkRateLimit, getIp } from "@/lib/ratelimit";
 
-const TOP_N = 50;
+const PAGE_SIZE = 50;
 
 export async function GET(req: Request) {
   try {
+    const limited = await checkRateLimit(apiLimiter, getIp(req));
+    if (limited) return limited;
+
     const { searchParams } = new URL(req.url);
     const sport = (searchParams.get("sport") ?? "").toUpperCase();
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+    const skip = (page - 1) * PAGE_SIZE;
 
     if (sport && !isValidSport(sport)) {
       return NextResponse.json({ error: "Invalid sport" }, { status: 400 });
@@ -19,18 +25,17 @@ export async function GET(req: Request) {
       const entries = await db.userSport.findMany({
         where: { sport: sport as Sport },
         orderBy: { xpTotal: "desc" },
-        take: TOP_N,
+        take: PAGE_SIZE,
+        skip,
         include: { user: { select: { id: true, name: true } } },
       });
 
       return NextResponse.json(
         entries.map((e, idx) => ({
-          rank: idx + 1,
+          rank: skip + idx + 1,
           userId: e.user.id,
           name: e.user.name ?? "Anonymous",
           xpTotal: e.xpTotal,
-          rankTier: e.rankTier,
-          division: e.division,
           sport: e.sport,
         }))
       );
@@ -41,7 +46,8 @@ export async function GET(req: Request) {
       by: ["userId"],
       _sum: { xpTotal: true },
       orderBy: { _sum: { xpTotal: "desc" } },
-      take: TOP_N,
+      take: PAGE_SIZE,
+      skip,
     });
 
     const userIds = raw.map((r) => r.userId);
@@ -53,7 +59,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       raw.map((r, idx) => ({
-        rank: idx + 1,
+        rank: skip + idx + 1,
         userId: r.userId,
         name: userMap[r.userId]?.name ?? "Anonymous",
         xpTotal: r._sum.xpTotal ?? 0,

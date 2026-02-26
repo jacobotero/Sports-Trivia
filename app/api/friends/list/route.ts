@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { FriendStatus } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -25,19 +26,19 @@ export async function GET() {
 
     const friends = [
       ...sent
-        .filter((r) => r.status === "ACCEPTED")
+        .filter((r) => r.status === FriendStatus.ACCEPTED)
         .map((r) => ({ requestId: r.id, user: r.receiver, status: r.status })),
       ...received
-        .filter((r) => r.status === "ACCEPTED")
+        .filter((r) => r.status === FriendStatus.ACCEPTED)
         .map((r) => ({ requestId: r.id, user: r.sender, status: r.status })),
     ];
 
     const pendingIncoming = received
-      .filter((r) => r.status === "PENDING")
+      .filter((r) => r.status === FriendStatus.PENDING)
       .map((r) => ({ requestId: r.id, user: r.sender, status: r.status }));
 
     const pendingOutgoing = sent
-      .filter((r) => r.status === "PENDING")
+      .filter((r) => r.status === FriendStatus.PENDING)
       .map((r) => ({ requestId: r.id, user: r.receiver, status: r.status }));
 
     return NextResponse.json({ friends, pendingIncoming, pendingOutgoing });

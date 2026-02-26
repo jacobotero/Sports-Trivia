@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { registerLimiter, checkRateLimit, getIp } from "@/lib/ratelimit";
 
 const schema = z.object({
   name: z.string().min(2).max(50),
@@ -11,6 +12,9 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const limited = await checkRateLimit(registerLimiter, getIp(req));
+    if (limited) return limited;
+
     const body = await req.json();
     const parsed = schema.safeParse(body);
 

@@ -4,13 +4,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeQuestionScore } from "@/lib/rank";
+import { answerLimiter, checkRateLimit, getIp } from "@/lib/ratelimit";
 
 const QUESTION_TIME_LIMIT_MS = 10_000;
 
 const schema = z.object({
   attemptId: z.string(),
   questionId: z.string(),
-  submittedAnswer: z.string(),
+  submittedAnswer: z.string().max(500),
   timeTakenMs: z.number().int().min(0).max(QUESTION_TIME_LIMIT_MS + 1000),
 });
 
@@ -20,6 +21,9 @@ function normalizeAnswer(answer: string): string {
 
 export async function POST(req: Request) {
   try {
+    const limited = await checkRateLimit(answerLimiter, getIp(req));
+    if (limited) return limited;
+
     const session = await getServerSession(authOptions);
     const body = await req.json();
     const parsed = schema.safeParse(body);
