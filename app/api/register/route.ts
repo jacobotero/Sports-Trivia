@@ -29,6 +29,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }
 
+    const nameTaken = await db.user.findFirst({
+      where: { name: { equals: name.trim(), mode: "insensitive" } },
+    });
+    if (nameTaken) {
+      return NextResponse.json({ error: "Display name already taken" }, { status: 409 });
+    }
+
     const hashed = await bcrypt.hash(password, 12);
     const user = await db.user.create({
       data: { name, email: normalizedEmail, password: hashed },

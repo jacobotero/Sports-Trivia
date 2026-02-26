@@ -19,9 +19,21 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid name" }, { status: 400 });
     }
 
+    const trimmed = parsed.data.name.trim();
+
+    const nameTaken = await db.user.findFirst({
+      where: {
+        name: { equals: trimmed, mode: "insensitive" },
+        NOT: { id: session.user.id },
+      },
+    });
+    if (nameTaken) {
+      return NextResponse.json({ error: "Display name already taken" }, { status: 409 });
+    }
+
     await db.user.update({
       where: { id: session.user.id },
-      data: { name: parsed.data.name.trim() },
+      data: { name: trimmed },
     });
 
     return NextResponse.json({ success: true });
