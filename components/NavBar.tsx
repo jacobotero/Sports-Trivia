@@ -80,8 +80,8 @@ export function NavBar() {
     <nav className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="font-bold text-xl tracking-tight shrink-0">
-          <span className="text-primary">Sports</span>
-          <span className="text-muted-foreground">dle</span>
+          <span className="text-primary">Fanat</span>
+          <span>IQ</span>
         </Link>
 
         <div className="flex items-center gap-2">
