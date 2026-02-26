@@ -1,21 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Settings } from "lucide-react";
+import { Loader2, Settings, TriangleAlert } from "lucide-react";
 
 export default function SettingsPage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [resetArmed, setResetArmed] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -44,6 +44,28 @@ export default function SettingsPage() {
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleReset() {
+    if (!resetArmed) {
+      setResetArmed(true);
+      setTimeout(() => setResetArmed(false), 5000);
+      return;
+    }
+    setResetting(true);
+    try {
+      const res = await fetch("/api/user/reset", { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      toast.success("All data cleared. Signing you out...");
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("sportsdle_played_"))
+        .forEach((k) => localStorage.removeItem(k));
+      setTimeout(() => signOut({ callbackUrl: "/" }), 1500);
+    } catch {
+      toast.error("Reset failed. Try again.");
+      setResetting(false);
+      setResetArmed(false);
     }
   }
 
@@ -88,6 +110,43 @@ export default function SettingsPage() {
             <span className="text-muted-foreground">Email</span>
             <span>{session?.user?.email}</span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-red-500/30">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2 text-red-400">
+            <TriangleAlert className="h-4 w-4" />
+            Danger Zone
+          </CardTitle>
+          <CardDescription>
+            Permanently deletes all your game history and XP. Your account stays active.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className={`transition-all duration-200 ${
+              resetArmed
+                ? "border-red-500 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                : "border-red-500/30 text-red-400/70 hover:border-red-500/60 hover:text-red-400"
+            }`}
+            onClick={handleReset}
+            disabled={resetting}
+          >
+            {resetting ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+            ) : resetArmed ? (
+              "Click again to confirm reset"
+            ) : (
+              "Reset All Data"
+            )}
+          </Button>
+          {resetArmed && (
+            <p className="text-xs text-red-400/70 mt-2">
+              This cannot be undone. Click again to confirm.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
