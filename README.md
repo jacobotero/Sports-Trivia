@@ -1,4 +1,4 @@
-# Sportsdle — Daily Sports Trivia App
+# FanatIQ — Daily Sports Trivia App
 
 A full-stack, production-ready daily sports trivia game built with the Next.js App Router. Users get one attempt per sport per day — answer 8 questions as fast as possible to earn XP, level up, and compete on leaderboards. Built entirely as a solo project to demonstrate end-to-end full-stack development.
 
@@ -123,7 +123,7 @@ cp .env.example .env
 ```
 
 ```env
-DATABASE_URL="postgresql://user:password@host:5432/sportsdle?sslmode=require"
+DATABASE_URL="postgresql://user:password@host:5432/fanatiq?sslmode=require"
 NEXTAUTH_SECRET="your-random-secret"   # openssl rand -base64 32
 NEXTAUTH_URL="http://localhost:3000"
 ```

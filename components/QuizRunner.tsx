@@ -222,7 +222,7 @@ export function QuizRunner({
     ) return;
     forfeitFiredRef.current = true;
     // Mark as played in localStorage so the home page reflects it immediately
-    localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+    localStorage.setItem(`fanatiq_played_${date}_${sport}`, "1");
     navigator.sendBeacon(
       "/api/attempt/forfeit",
       new Blob(
@@ -285,14 +285,14 @@ export function QuizRunner({
               previousLevel: data.previousLevel ?? 1,
               newLevel: data.newLevel ?? 1,
             });
-            localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+            localStorage.setItem(`fanatiq_played_${date}_${sport}`, "1");
             setPhase("done");
             return;
           }
         } catch { /* fall through */ }
       }
       const totalScore = newResults.reduce((s, r) => s + r.score, 0);
-      localStorage.setItem(`sportsdle_played_${date}_${sport}`, "1");
+      localStorage.setItem(`fanatiq_played_${date}_${sport}`, "1");
       setFinalSummary({ totalScore, xpEarned: 0, previousXp: 0, newXp: 0, previousLevel: 1, newLevel: 1 });
       setPhase("done");
     },
@@ -369,7 +369,7 @@ export function QuizRunner({
     const score = results.reduce((s, r) => s + r.score, 0);
     const correct = results.filter((r) => r.isCorrect).length;
     const emojis = results.map((r) => (r.isCorrect ? "✅" : "❌")).join("");
-    const text = `Sportsdle ${sport} — ${date}\n${emojis}\n${correct}/${totalQuestions} correct · ${score} pts\nPlay at sportsdle.app`;
+    const text = `FanatIQ ${sport} — ${date}\n${emojis}\n${correct}/${totalQuestions} correct · ${score} pts\nPlay at fanatiq.app`;
     navigator.clipboard.writeText(text).then(() => toast.success("Copied!"));
   }, [results, sport, date, totalQuestions]);
 

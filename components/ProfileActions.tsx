@@ -53,7 +53,7 @@ export function ProfileActions({ currentName }: { currentName: string }) {
       if (!res.ok) throw new Error();
       toast.success("All data cleared. Signing you out...");
       Object.keys(localStorage)
-        .filter((k) => k.startsWith("sportsdle_played_"))
+        .filter((k) => k.startsWith("fanatiq_played_"))
         .forEach((k) => localStorage.removeItem(k));
       setTimeout(() => signOut({ callbackUrl: "/" }), 1500);
     } catch {

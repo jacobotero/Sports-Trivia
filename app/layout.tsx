@@ -17,24 +17,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const APP_URL = process.env.NEXTAUTH_URL ?? "https://sportsdle.vercel.app";
+const APP_URL = process.env.NEXTAUTH_URL ?? "https://fanatiq.vercel.app";
 
 export const metadata: Metadata = {
-  title: "Sportsdle — Daily Sports Trivia",
+  title: "FanatIQ — Daily Sports Trivia",
   description:
     "Test your sports knowledge with daily trivia across MLB, NFL, and NBA. Play for free, earn XP, level up, and challenge friends.",
   metadataBase: new URL(APP_URL),
   openGraph: {
-    title: "Sportsdle — Daily Sports Trivia",
+    title: "FanatIQ — Daily Sports Trivia",
     description:
       "Test your sports knowledge with daily trivia across MLB, NFL, and NBA. Play for free, earn XP, level up, and challenge friends.",
     url: APP_URL,
-    siteName: "Sportsdle",
+    siteName: "FanatIQ",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Sportsdle — Daily Sports Trivia",
+    title: "FanatIQ — Daily Sports Trivia",
     description: "Daily MLB, NFL, and NBA trivia. One shot per day — make it count.",
   },
 };
@@ -57,7 +57,7 @@ export default function RootLayout({
             <div className="max-w-6xl mx-auto px-4">
               <AdSlot slot="footer" className="mb-4" />
               <p className="text-center text-xs text-muted-foreground">
-                © {new Date().getFullYear()} Sportsdle · Daily sports trivia
+                © {new Date().getFullYear()} FanatIQ · Daily sports trivia
               </p>
             </div>
           </footer>

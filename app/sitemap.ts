@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXTAUTH_URL ?? "https://sportsdle.vercel.app";
+  const base = process.env.NEXTAUTH_URL ?? "https://fanatiq.vercel.app";
   return [
     { url: base, changeFrequency: "daily", priority: 1 },
     { url: `${base}/leaderboard`, changeFrequency: "hourly", priority: 0.8 },

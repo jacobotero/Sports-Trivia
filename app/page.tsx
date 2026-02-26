@@ -18,7 +18,7 @@ function todayStr() {
 function getPlayedFromStorage(date: string) {
   const result: Partial<Record<string, number>> = {};
   for (const sport of SPORTS) {
-    if (localStorage.getItem(`sportsdle_played_${date}_${sport}`)) result[sport] = 1;
+    if (localStorage.getItem(`fanatiq_played_${date}_${sport}`)) result[sport] = 1;
   }
   return result;
 }
@@ -44,7 +44,7 @@ export default function HomePage() {
   async function handleDevReset() {
     setResetting(true);
     try {
-      for (const sport of SPORTS) localStorage.removeItem(`sportsdle_played_${today}_${sport}`);
+      for (const sport of SPORTS) localStorage.removeItem(`fanatiq_played_${today}_${sport}`);
       await fetch("/api/dev/reset", { method: "POST" });
       setPlayed({});
     } finally {
@@ -60,8 +60,8 @@ export default function HomePage() {
     <div className="flex flex-col gap-10">
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-center flex flex-col gap-3 pt-6 pb-2">
         <h1 className="text-5xl sm:text-6xl font-black tracking-tight">
-          <span className="text-primary">Sports</span>
-          <span className="text-muted-foreground">dle</span>
+          <span className="text-primary">Fanat</span>
+          <span>IQ</span>
         </h1>
         <p className="text-muted-foreground text-base sm:text-lg max-w-sm mx-auto leading-relaxed">
           Daily sports trivia. One shot per day — make it count.
